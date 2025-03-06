@@ -1,0 +1,104 @@
+///////////////////////////////////////////////////////////////////////////////
+// 1. LOAD DATA
+///////////////////////////////////////////////////////////////////////////////
+
+// Scilab is a free and open-source software package for numerical computation,
+// providing a powerful computing environment for engineering and scientific applications.
+//
+// To download the latest version of Scilab, follow these steps:
+// 1. Visit the Official Scilab Website: https://www.scilab.org/download/scilab-2025.0.0
+// 2. Select your OS and download the appropriate installer.
+// 3. Install Scilab according to the instructions for your platform.
+// For more details, see: https://www.scilab.org/download/scilab-2025.0.0
+// Or consult the Scilab community forums: https://www.scilab.org/community
+
+fileX = "model_matrix.csv";
+fileY = "y.csv";
+
+// If your CSV files have no header row, you can do:
+X = csvRead(fileX, ",", ".", "double");  // design matrix (including an intercept column)
+y = csvRead(fileY, ",", ".", "double");  // numeric outcome: Crash_Score
+
+// Optional: check dimensions
+[N, p] = size(X);  // N = number of observations, p = number of predictors (including intercept)
+disp("Size of X = "+string(N)+" x "+string(p));
+disp("Size of y = "+string(size(y,1))+" x 1");
+
+///////////////////////////////////////////////////////////////////////////////
+// 2. FIT THE GAUSSIAN GLM (LINEAR MODEL) VIA NORMAL EQUATIONS
+///////////////////////////////////////////////////////////////////////////////
+//
+//   We solve for beta_hat = (X^T X)^(-1) X^T y
+//
+// IMPORTANT: This direct inverse approach is fine for demonstration,
+// but for numerical stability, an alternative like QR decomposition is recommended.
+// For moderate data sizes, normal equations are typically acceptable.
+
+XT = X';
+XT_X = XT * X;        // (p x p)
+XT_y = XT * y;        // (p x 1)
+
+// invert (X^T X)
+inv_XT_X = inv(XT_X);
+
+// compute beta estimates
+beta_hat = inv_XT_X * XT_y;  // p x 1
+
+///////////////////////////////////////////////////////////////////////////////
+// 3. COMPUTE FITTED VALUES, RESIDUALS, RSS, etc.
+///////////////////////////////////////////////////////////////////////////////
+
+y_hat = X * beta_hat;       // fitted values
+resid = y - y_hat;          // residuals (N x 1)
+RSS   = sum(resid.^2);      // residual sum of squares
+
+// degrees of freedom = N - p
+df = N - p;
+
+// unbiased estimate of variance, i.e. mean squared error (MSE)
+sigma2_hat = RSS / df;
+sigma_hat  = sqrt(sigma2_hat);
+
+// standard errors of coefficients: sqrt( diag( sigma^2 * (X^T X)^(-1) ) )
+var_beta_hat = sigma2_hat * inv_XT_X;       // p x p
+SE_beta      = sqrt(diag(var_beta_hat));    // p x 1
+
+///////////////////////////////////////////////////////////////////////////////
+// 4. T-STATISTICS AND P-VALUES
+///////////////////////////////////////////////////////////////////////////////
+//
+// t_j = beta_hat_j / SE_beta_j
+// p-value = 2 * [1 - CDF_t(|t_j|, df)] for two-sided test
+// SciLab does not have a built-in for the Student-t CDF in base. 
+// If you have the Statistics or DSP toolbox, you can import the t-distribution CDF. 
+// Or, for large N, a z approximation might suffice.
+
+t_stats = beta_hat ./ SE_beta;     // p x 1
+
+// If we want approximate p-values using normal distribution for large df
+// (like R does if df is large). For a more rigorous approach, you need a t-distribution CDF.
+function pVal = pValueApprox(t)
+    pVal = 2 * (1 - cdfnor(abs(t), 0, 1));  // normal approx
+endfunction
+
+p_values = arrayfun(pValueApprox, t_stats);
+
+///////////////////////////////////////////////////////////////////////////////
+// 5. DISPLAY RESULTS
+///////////////////////////////////////////////////////////////////////////////
+
+disp("================== GAUSSIAN GLM RESULTS ==================");
+for j = 1:p
+    mprintf("Coefficient %d: beta_hat=%.5f  SE=%.5f  t=%.3f  p=%.6f\n", ...
+             j, beta_hat(j), SE_beta(j), t_stats(j), p_values(j));
+end
+mprintf("\nResidual Sum of Squares (RSS) = %.5f\n", RSS);
+mprintf("Degrees of Freedom = %d\n", df);
+mprintf("Residual Std. Error = %.5f\n", sigma_hat);
+
+// Optionally compute AIC for Gaussian model: AIC = N*ln(RSS/N) + 2p + constant
+// (constant = N*(1+ln(2pi)) is the same across models, so often omitted for comparisons)
+AIC = N*log(RSS/N) + 2*p;
+mprintf("Approx AIC (ignoring constant) = %.3f\n", AIC);
+
+disp("===========================================================");
