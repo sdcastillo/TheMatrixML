@@ -1,5 +1,7 @@
 # The Matrix and SciLab
 
+https://www.youtube.com/watch?v=Z_hmknmjp14
+
 # R CODE 
 You can run this code using R and Rstudio.
 place this dataset in your directory and load into 
