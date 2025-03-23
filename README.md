@@ -1,6 +1,6 @@
 # The Matrix and SciLab
 
-https://www.youtube.com/watch?v=Z_hmknmjp14
+https://www.youtube.com/watch?v=PSr5Q9KwIsg
 
 # R CODE 
 You can run this code using R and Rstudio.
